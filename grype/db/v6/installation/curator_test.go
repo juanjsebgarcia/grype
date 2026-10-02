@@ -572,6 +572,69 @@ func TestCurator_validateIntegrity(t *testing.T) {
 	})
 }
 
+// openCountingFs records how many times the DB file is opened, which is how its checksum is computed
+type openCountingFs struct {
+	afero.Fs
+	path  string
+	opens int
+}
+
+func (f *openCountingFs) Open(name string) (afero.File, error) {
+	if name == f.path {
+		f.opens++
+	}
+	return f.Fs.Open(name)
+}
+
+func (f *openCountingFs) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
+	if name == f.path {
+		f.opens++
+	}
+	return f.Fs.OpenFile(name, flag, perm)
+}
+
+func TestCurator_Status_checksum(t *testing.T) {
+	newCurator := func(t *testing.T, validateChecksum bool) (curator, *openCountingFs) {
+		cfg := testConfig()
+		cfg.DBRootDir = t.TempDir()
+		cfg.ValidateAge = false
+		cfg.ValidateChecksum = validateChecksum
+
+		require.NoError(t, os.MkdirAll(cfg.DBDirectoryPath(), 0755))
+		sw := setupTestDB(t, cfg.DBDirectoryPath())
+		require.NoError(t, sw.SetDBMetadata())
+		require.NoError(t, sw.Close())
+
+		// the recorded digest does not match the DB, so hashing it would fail validation
+		writeTestImportMetadata(t, afero.NewOsFs(), cfg.DBDirectoryPath(), "xxh64:0000000000000000")
+
+		ci, err := NewCurator(cfg, new(mockClient))
+		require.NoError(t, err)
+		c := ci.(curator)
+		fs := &openCountingFs{Fs: c.fs, path: cfg.DBFilePath()}
+		c.fs = fs
+		return c, fs
+	}
+
+	t.Run("validation on hashes the DB and reports a bad checksum", func(t *testing.T) {
+		c, fs := newCurator(t, true)
+
+		status := c.Status()
+		require.ErrorContains(t, status.Error, "bad db checksum")
+		assert.Equal(t, 1, fs.opens)
+	})
+
+	t.Run("validation off does not hash the DB", func(t *testing.T) {
+		c, fs := newCurator(t, false)
+
+		status := c.Status()
+		require.NoError(t, status.Error)
+		assert.Equal(t, 0, fs.opens)
+		assert.Equal(t, c.config.DBFilePath(), status.Path)
+		assert.NotEmpty(t, status.SchemaVersion)
+	})
+}
+
 func TestReplaceDB(t *testing.T) {
 	cases := []struct {
 		name     string
