@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/anchore/clio"
 	"github.com/anchore/grype/grype/distro"
@@ -244,6 +245,104 @@ func TestBuildPackageAlerts(t *testing.T) {
 					}
 				}
 			}
+		})
+	}
+}
+
+func TestIndexPackagesByID(t *testing.T) {
+	packages := []pkg.Package{
+		{ID: "id-a", Name: "first-a"},
+		{ID: "id-b", Name: "only-b"},
+		{ID: "id-a", Name: "second-a"},
+		{ID: "", Name: "first-empty"},
+		{ID: "", Name: "second-empty"},
+	}
+
+	byID := indexPackagesByID(packages)
+
+	require.Len(t, byID, 3)
+	assert.Equal(t, "first-a", byID["id-a"].Name)
+	assert.Equal(t, "only-b", byID["id-b"].Name)
+	assert.Equal(t, "first-empty", byID[""].Name)
+	assert.Nil(t, byID["id-missing"])
+
+	// the index must agree with pkg.ByID for every ID, including duplicated and unknown ones
+	for _, id := range []pkg.ID{"id-a", "id-b", "", "id-missing"} {
+		assert.Equal(t, pkg.ByID(id, packages), byID[id], "package ID %q", id)
+	}
+
+	assert.Empty(t, indexPackagesByID(nil))
+}
+
+func TestNewDocumentDuplicatePackageIDs(t *testing.T) {
+	first := pkg.Package{ID: "shared-id", Name: "first", Version: "1.0.0", Type: syftPkg.DebPkg}
+	second := pkg.Package{ID: "shared-id", Name: "second", Version: "2.0.0", Type: syftPkg.DebPkg}
+
+	// the match carries the second package, but the document resolves the ID against the collection,
+	// where the first package with the ID wins
+	m := match.Match{
+		Vulnerability: vulnerability.Vulnerability{Reference: vulnerability.Reference{ID: "CVE-1999-0001"}},
+		Package:       second,
+		Details:       match.Details{{Type: match.ExactDirectMatch}},
+	}
+	ignored := match.Match{
+		Vulnerability: vulnerability.Vulnerability{Reference: vulnerability.Reference{ID: "CVE-1999-0002"}},
+		Package:       second,
+		Details:       match.Details{{Type: match.ExactDirectMatch}},
+	}
+
+	matches := match.NewMatches()
+	matches.Add(m)
+
+	doc, err := NewDocument(clio.Identification{}, []pkg.Package{first, second}, pkg.Context{}, matches,
+		[]match.IgnoredMatch{{Match: ignored}}, NewMetadataMock(), nil, nil, SortByPackage, false, nil)
+	require.NoError(t, err)
+
+	require.Len(t, doc.Matches, 1)
+	assert.Equal(t, "first", doc.Matches[0].Artifact.Name)
+	assert.Equal(t, "1.0.0", doc.Matches[0].Artifact.Version)
+
+	require.Len(t, doc.IgnoredMatches, 1)
+	assert.Equal(t, "first", doc.IgnoredMatches[0].Artifact.Name)
+	assert.Equal(t, "1.0.0", doc.IgnoredMatches[0].Artifact.Version)
+}
+
+func TestNewDocumentMissingPackage(t *testing.T) {
+	known := pkg.Package{ID: "known-id", Name: "known", Version: "1.0.0", Type: syftPkg.DebPkg}
+	unknown := pkg.Package{ID: "unknown-id", Name: "unknown", Version: "1.0.0", Type: syftPkg.DebPkg}
+
+	newTestMatch := func(p pkg.Package) match.Match {
+		return match.Match{
+			Vulnerability: vulnerability.Vulnerability{Reference: vulnerability.Reference{ID: "CVE-1999-0001"}},
+			Package:       p,
+			Details:       match.Details{{Type: match.ExactDirectMatch}},
+		}
+	}
+
+	tests := []struct {
+		name           string
+		matches        []match.Match
+		ignoredMatches []match.IgnoredMatch
+	}{
+		{
+			name:    "match references a package that is not in the collection",
+			matches: []match.Match{newTestMatch(known), newTestMatch(unknown)},
+		},
+		{
+			name:           "ignored match references a package that is not in the collection",
+			matches:        []match.Match{newTestMatch(known)},
+			ignoredMatches: []match.IgnoredMatch{{Match: newTestMatch(unknown)}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			matches := match.NewMatches()
+			matches.Add(tt.matches...)
+
+			_, err := NewDocument(clio.Identification{}, []pkg.Package{known}, pkg.Context{}, matches,
+				tt.ignoredMatches, NewMetadataMock(), nil, nil, SortByPackage, false, nil)
+			require.EqualError(t, err, "unable to find package in collection: <nil>")
 		})
 	}
 }

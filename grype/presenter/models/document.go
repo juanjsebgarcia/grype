@@ -32,10 +32,13 @@ func NewDocument(id clio.Identification, packages []pkg.Package, context pkg.Con
 		return Document{}, err
 	}
 
+	// index the packages once rather than scanning the whole collection for every match
+	packagesByID := indexPackagesByID(packages)
+
 	// we must preallocate the findings to ensure the JSON document does not show "null" when no matches are found
 	var findings = make([]Match, 0)
 	for _, m := range matches.Sorted() {
-		p := pkg.ByID(m.Package.ID, packages)
+		p := packagesByID[m.Package.ID]
 		if p == nil {
 			return Document{}, fmt.Errorf("unable to find package in collection: %+v", p)
 		}
@@ -61,7 +64,7 @@ func NewDocument(id clio.Identification, packages []pkg.Package, context pkg.Con
 
 	var ignoredMatchModels []IgnoredMatch
 	for _, m := range ignoredMatches {
-		p := pkg.ByID(m.Package.ID, packages)
+		p := packagesByID[m.Package.ID]
 		if p == nil {
 			return Document{}, fmt.Errorf("unable to find package in collection: %+v", p)
 		}
@@ -92,6 +95,18 @@ func NewDocument(id clio.Identification, packages []pkg.Package, context pkg.Con
 			Timestamp:     timestamp,
 		},
 	}, nil
+}
+
+// indexPackagesByID maps each package ID to its package. When several packages share an ID the first one
+// wins, which is the package that pkg.ByID would return.
+func indexPackagesByID(packages []pkg.Package) map[pkg.ID]*pkg.Package {
+	byID := make(map[pkg.ID]*pkg.Package, len(packages))
+	for i := range packages {
+		if _, ok := byID[packages[i].ID]; !ok {
+			byID[packages[i].ID] = &packages[i]
+		}
+	}
+	return byID
 }
 
 // createTimestamp creates a timestamp string for the document descriptor.
