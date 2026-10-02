@@ -87,6 +87,18 @@ func GenerateAnalysis(t *testing.T, scheme SyftSource) (*sbom.SBOM, models.Docum
 
 func GenerateAnalysisWithIgnoredMatches(t *testing.T, scheme SyftSource) models.Document {
 	t.Helper()
+	return generateAnalysisWithIgnoredMatches(t, scheme, false)
+}
+
+// GenerateAnalysisWithIgnoredMatchesOmitted builds the same document as GenerateAnalysisWithIgnoredMatches, but with
+// the ignored matches left out, as they are when the vulnerability matcher runs with OmitIgnoredMatches set.
+func GenerateAnalysisWithIgnoredMatchesOmitted(t *testing.T, scheme SyftSource) models.Document {
+	t.Helper()
+	return generateAnalysisWithIgnoredMatches(t, scheme, true)
+}
+
+func generateAnalysisWithIgnoredMatches(t *testing.T, scheme SyftSource, omitIgnored bool) models.Document {
+	t.Helper()
 
 	s := &sbom.SBOM{
 		Artifacts: sbom.Artifacts{
@@ -98,6 +110,9 @@ func GenerateAnalysisWithIgnoredMatches(t *testing.T, scheme SyftSource) models.
 
 	matches := generateMatches(t, grypePackages[0], grypePackages[1])
 	ignoredMatches := generateIgnoredMatches(t, grypePackages[1])
+	if omitIgnored {
+		ignoredMatches = nil
+	}
 	context := generateContext(t, scheme)
 
 	doc, err := models.NewDocument(clio.Identification{Name: appName, Version: "devel"}, grypePackages, context, matches, ignoredMatches, models.NewMetadataMock(), nil, nil, models.SortByPackage, true, nil)
