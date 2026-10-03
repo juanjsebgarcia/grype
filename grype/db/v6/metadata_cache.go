@@ -20,12 +20,13 @@ import (
 //   - byReference: a vulnerability reference that carries no row, by ID and namespace; the row is
 //     looked up by name within the provider named by the namespace.
 //
-// A lookup that returns an error is not stored, so the next call for that key tries again. Metadata built
+// A lookup that returns an error is not stored, so the next call for that key tries again, and neither is
+// a reference with no row in the DB, since callers can name any ID and namespace. Metadata built
 // while a KEV, EPSS or CWE lookup failed is stored as built, as the per-search cache this replaces did:
 // the provider logs those failures and returns the metadata without that data rather than failing.
 //
 // The cache is safe for concurrent use. It holds at most one entry per (vulnerability, namespace)
-// pair the provider is asked about, so it is bounded by the size of the DB, and in practice by the
+// pair the provider finds a row for, so it is bounded by the size of the DB, and in practice by the
 // vulnerabilities that match the packages being scanned. Returned metadata is shared between
 // callers and must be treated as read-only.
 type metadataCache struct {

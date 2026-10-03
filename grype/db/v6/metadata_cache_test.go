@@ -169,23 +169,24 @@ func Test_metadataCache_references(t *testing.T) {
 	assert.Equal(t, "debian:distro:debian:12", debian.Namespace)
 	assert.Equal(t, int64(2), r.vulnerabilityLookups.Load())
 
-	// a reference with no row in the DB gets placeholder metadata, which is also remembered
+	// a reference with no row in the DB gets placeholder metadata, which is not remembered: callers can name
+	// any ID and namespace, so caching misses would let the cache grow without bound
 	missing := vulnerability.Reference{ID: "CVE-0000-0000", Namespace: "nvd:cpe"}
 	placeholder, err := vp.VulnerabilityMetadata(missing)
 	require.NoError(t, err)
 	assert.Equal(t, &vulnerability.Metadata{ID: "CVE-0000-0000", DataSource: "nvd", Namespace: "nvd:cpe", Severity: "Unknown"}, placeholder)
 	placeholderAgain, err := vp.VulnerabilityMetadata(missing)
 	require.NoError(t, err)
-	assert.Same(t, placeholder, placeholderAgain)
-	assert.Equal(t, int64(3), r.vulnerabilityLookups.Load())
+	assert.Equal(t, placeholder, placeholderAgain)
+	assert.Equal(t, int64(4), r.vulnerabilityLookups.Load())
 
 	// a reference holding a nil row gets placeholder metadata without touching the DB or the cache
 	nilRow, err := vp.VulnerabilityMetadata(vulnerability.Reference{ID: "CVE-2024-3400", Namespace: "nvd:cpe", Internal: (*VulnerabilityHandle)(nil)})
 	require.NoError(t, err)
 	assert.Equal(t, "Unknown", nilRow.Severity)
-	assert.Equal(t, int64(3), r.vulnerabilityLookups.Load())
+	assert.Equal(t, int64(4), r.vulnerabilityLookups.Load())
 
-	assert.Equal(t, 3, entries(&vp.metadata.byReference))
+	assert.Equal(t, 2, entries(&vp.metadata.byReference))
 }
 
 func Test_metadataCache_failures(t *testing.T) {
@@ -249,14 +250,19 @@ func Test_metadataCache_concurrentUse(t *testing.T) {
 	}
 	wg.Wait()
 
-	// every caller sees the one stored value for a key
+	// every caller sees the one stored value for a key, and an equal placeholder for the miss, which is not stored
 	for w := range workers {
 		for i, m := range results[w] {
-			assert.Same(t, results[0][i%len(refs)], m)
+			want := results[0][i%len(refs)]
+			if refs[i%len(refs)].ID == "CVE-0000-0000" {
+				assert.Equal(t, want, m)
+				continue
+			}
+			assert.Same(t, want, m)
 		}
 	}
 	assert.Equal(t, 2, entries(&vp.metadata.byHandle))
-	assert.Equal(t, 2, entries(&vp.metadata.byReference))
+	assert.Equal(t, 1, entries(&vp.metadata.byReference))
 }
 
 // Test_metadataCache_matchesUncached runs the same searches and reference lookups through a provider that
