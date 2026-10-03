@@ -2,6 +2,7 @@ package json
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"regexp"
 	"testing"
@@ -120,6 +121,45 @@ func TestEmptyJsonPresenter(t *testing.T) {
 
 	assert.JSONEq(t, string(expected), string(actual))
 
+}
+
+func TestJsonPresenterWithIgnoredMatchesOmitted(t *testing.T) {
+	present := func(doc models.Document) map[string]json.RawMessage {
+		t.Helper()
+		var buffer bytes.Buffer
+		pres := NewPresenter(models.PresenterConfig{
+			ID:       clio.Identification{Name: "grype", Version: "[not provided]"},
+			Document: doc,
+			Pretty:   true,
+		})
+		require.NoError(t, pres.Present(&buffer))
+
+		var sections map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(redact(buffer.Bytes()), &sections))
+		return sections
+	}
+
+	full := present(internal.GenerateAnalysisWithIgnoredMatches(t, internal.ImageSource))
+	omitted := present(internal.GenerateAnalysisWithIgnoredMatchesOmitted(t, internal.ImageSource))
+
+	// precondition: the default document reports ignored matches
+	require.Contains(t, full, "ignoredMatches")
+	var ignored []json.RawMessage
+	require.NoError(t, json.Unmarshal(full["ignoredMatches"], &ignored))
+	require.NotEmpty(t, ignored)
+
+	// the section is absent rather than an empty list or null
+	assert.NotContains(t, omitted, "ignoredMatches")
+
+	// every other section is byte-identical
+	delete(full, "ignoredMatches")
+	require.Equal(t, len(full), len(omitted))
+	for key, want := range full {
+		assert.Equal(t, string(want), string(omitted[key]), "section %q differs", key)
+	}
+	for _, key := range []string{"matches", "source", "distro", "descriptor"} {
+		assert.Contains(t, omitted, key)
+	}
 }
 
 func redact(content []byte) []byte {

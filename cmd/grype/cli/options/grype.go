@@ -32,6 +32,7 @@ type Grype struct {
 	Registry                   registry           `yaml:"registry" json:"registry" mapstructure:"registry"`
 	ShowSuppressed             bool               `yaml:"show-suppressed" json:"show-suppressed" mapstructure:"show-suppressed"`
 	IncludeMatcherSuppressions bool               `yaml:"include-matcher-suppressions" json:"include-matcher-suppressions" mapstructure:"include-matcher-suppressions"` // include matches suppressed internally by matchers (distro fixed/NAK records, built-in false-positive list) in the ignored matches output, default=false
+	OmitIgnoredMatches         bool               `yaml:"omit-ignored-matches" json:"omit-ignored-matches" mapstructure:"omit-ignored-matches"`                         // leave ignored matches out of the report (ignore rules still apply), default=false
 	ByCVE                      bool               `yaml:"by-cve" json:"by-cve" mapstructure:"by-cve"`                                                                   // --by-cve, indicates if the original match vulnerability IDs should be preserved or the CVE should be used instead
 	SortBy                     SortBy             `yaml:",inline" json:",inline" mapstructure:",squash"`
 	Name                       string             `yaml:"name" json:"name" mapstructure:"name"`
@@ -73,6 +74,7 @@ func DefaultGrype(id clio.Identification) *Grype {
 		VexAdd:                     []string{},
 		MatchUpstreamKernelHeaders: false,
 		IncludeMatcherSuppressions: false,
+		OmitIgnoredMatches:         false,
 		SortBy:                     defaultSortBy(),
 		Timestamp:                  true,
 		Alerts:                     defaultAlerts(),
@@ -175,6 +177,15 @@ func (o *Grype) PostLoad() error {
 			return fmt.Errorf("bad --fail-on severity value '%s'", o.FailOn)
 		}
 	}
+
+	if o.OmitIgnoredMatches {
+		if o.ShowSuppressed {
+			return fmt.Errorf("omit-ignored-matches cannot be combined with --show-suppressed")
+		}
+		if o.IncludeMatcherSuppressions {
+			return fmt.Errorf("omit-ignored-matches cannot be combined with include-matcher-suppressions")
+		}
+	}
 	return nil
 }
 
@@ -221,6 +232,10 @@ VEX fields apply when Grype reads VEX data:
 	descriptions.Add(&o.VexAdd, `VEX statuses to consider as ignored rules`)
 	descriptions.Add(&o.MatchUpstreamKernelHeaders, `match kernel-header packages with upstream kernel as kernel vulnerabilities`)
 	descriptions.Add(&o.IncludeMatcherSuppressions, `include matches suppressed internally by matchers (e.g. distro fixed/NAK records, the built-in false-positive list) in the ignored matches output`)
+	descriptions.Add(&o.OmitIgnoredMatches, `leave ignored matches out of the report (the "ignoredMatches" section of the JSON output and the
+.IgnoredMatches template field); ignore rules and VEX statements are still applied, so the reported matches
+are unchanged. Useful when the ignored matches are never read, since it saves the time and memory of building
+and encoding them. Cannot be combined with --show-suppressed or include-matcher-suppressions`)
 }
 
 func (o Grype) FailOnSeverity() *vulnerability.Severity {

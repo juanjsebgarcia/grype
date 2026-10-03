@@ -235,6 +235,7 @@ func runGrype(ctx context.Context, app clio.Application, opts *options.Grype, us
 			EnableEOLDistroWarnings: opts.Alerts.EnableEOLDistroWarnings,
 		},
 		IncludeMatcherSuppressions: opts.IncludeMatcherSuppressions,
+		OmitIgnoredMatches:         opts.OmitIgnoredMatches,
 	}
 
 	remainingMatches, ignoredMatches, err := vulnMatcher.FindMatchesContext(ctx, packages, pkgContext)
