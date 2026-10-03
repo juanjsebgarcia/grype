@@ -235,19 +235,24 @@ func Test_metadataCache_concurrentUse(t *testing.T) {
 	const workers = 16
 	results := make([][]*vulnerability.Metadata, workers)
 	var wg sync.WaitGroup
+	start := make(chan struct{})
 	for w := range workers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			<-start
 			for range 50 {
 				for _, ref := range refs {
 					m, err := vp.VulnerabilityMetadata(ref)
 					assert.NoError(t, err)
+					// the presenter reads the risk score from shared metadata; this must not write to it
+					m.RiskScore()
 					results[w] = append(results[w], m)
 				}
 			}
 		}()
 	}
+	close(start)
 	wg.Wait()
 
 	// every caller sees the one stored value for a key, and an equal placeholder for the miss, which is not stored
