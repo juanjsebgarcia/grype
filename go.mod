@@ -33,7 +33,7 @@ require (
 	github.com/glebarez/sqlite v1.11.0
 	github.com/go-test/deep v1.1.1
 	github.com/go-viper/mapstructure/v2 v2.5.0
-	github.com/gocsaf/csaf/v3 v3.5.1
+	github.com/gocsaf/csaf/v3 v3.7.0
 	github.com/gohugoio/hashstructure v0.6.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-containerregistry v0.22.1
@@ -70,9 +70,9 @@ require (
 	github.com/wagoodman/go-progress v0.0.0-20260303201901-10176f79b2c0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
-	golang.org/x/text v0.42.0
+	golang.org/x/text v0.43.0
 	golang.org/x/time v0.16.0
-	golang.org/x/tools v0.50.0
+	golang.org/x/tools v0.51.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.31.2
 )
@@ -104,7 +104,7 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Microsoft/go-winio v0.6.3-0.20251027160822-ad3df93bed29 // indirect
 	github.com/Microsoft/hcsshim v0.15.0-rc.4 // indirect
-	github.com/ProtonMail/go-crypto v1.4.1 // indirect
+	github.com/ProtonMail/go-crypto v1.5.2 // indirect
 	github.com/STARRY-S/zip v0.2.3 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/acobaugh/osrelease v0.1.0 // indirect
@@ -154,7 +154,7 @@ require (
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
-	github.com/cloudflare/circl v1.6.3 // indirect
+	github.com/cloudflare/circl v1.6.5 // indirect
 	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 // indirect
 	github.com/containerd/cgroups/v3 v3.1.3 // indirect
 	github.com/containerd/containerd/api v1.12.0 // indirect
@@ -292,7 +292,7 @@ require (
 	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d // indirect
 	github.com/sassoftware/go-rpmutils v0.4.0 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.11.0 // indirect
-	github.com/shopspring/decimal v1.4.0 // indirect
+	github.com/shopspring/decimal v1.5.0 // indirect
 	github.com/sigstore/fulcio v1.8.7 // indirect
 	github.com/sigstore/protobuf-specs v0.5.1 // indirect
 	github.com/sigstore/sigstore v1.10.8 // indirect
@@ -345,13 +345,13 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.2 // indirect
 	go4.org v0.0.0-20230225012048-214862532bf5 // indirect
-	golang.org/x/crypto v0.57.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/mod v0.41.0 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/term v0.46.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect
 	google.golang.org/api v0.294.0 // indirect
